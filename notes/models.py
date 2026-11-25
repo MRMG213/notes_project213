@@ -3,11 +3,13 @@ from django.db import models
 
 class Category(models.Model):
     name = models.CharField("Название", max_length=100, unique=True)
+    
     def __str__(self):
         return self.name
 
 class Tag(models.Model):
     name = models.CharField("Название", max_length=50, unique=True)
+    
     def __str__(self):
         return self.name
 
@@ -31,6 +33,11 @@ class Note(models.Model):
         ordering = ["-created_at"]
         verbose_name = "Заметка"
         verbose_name_plural = "Заметки"
+        indexes = [
+            models.Index(fields=["category", "is_done"]),
+            models.Index(fields=["is_done"]),
+            models.Index(fields=["created_at"]),
+        ]
         
     def __str__(self):
         return self.title
