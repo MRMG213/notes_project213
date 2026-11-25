@@ -1,10 +1,10 @@
 from django.shortcuts import get_object_or_404, redirect, render
 from django.db.models import Count
+from django.core.paginator import Paginator  # <-- Добавили
 from .forms import NoteForm
 from .models import Category, Note
 
 def index(request):
-    # 1. Оптимизация запросов (JOIN и prefetch)
     notes = Note.objects.select_related("category", "owner").prefetch_related("tags")
     
     if request.GET.get("category"):
@@ -14,15 +14,18 @@ def index(request):
     if request.GET.get("q"):
         notes = notes.filter(title__icontains=request.GET["q"])
         
-    # 2. COUNT на стороне базы вместо len()
-    total = notes.count()              
-    notes = notes[:300]             
+    # Убираем total = notes.count() и срез [:300]
     
-    # 3. Подсчет категорий через GROUP BY вместо цикла в шаблоне
+    # Создаем пагинатор: по 20 заметок на страницу
+    paginator = Paginator(notes, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+    
     categories = Category.objects.annotate(notes_count=Count("notes")).order_by("name")
     
     return render(request, "notes/note_list.html", {
-        "notes": notes, "total": total, "categories": categories,
+        "page_obj": page_obj, 
+        "categories": categories,
     })
 
 def note_create(request):

@@ -9,14 +9,14 @@
         <option value="{{ c.pk }}">{{ c.name }} ({{ c.notes_count }})</option>
       {% endfor %}
     </select>
-    <label><input type="checkbox" name="active" value="1"> Только невыполненные</label>
+    <label><input type="checkbox" name="active" value="1" {% if request.GET.active %}checked{% endif %}> Только невыполненные</label>
     <button type="submit">Найти</button>
   </form>
   
-  <p>Найдено: {{ total }}</p>
+  <p>Найдено: {{ page_obj.paginator.count }}</p>
   <a class="btn" href="{% url 'notes:create' %}">+ Новая заметка</a>
   
-  {% for note in notes %}
+  {% for note in page_obj %}
     <article class="note {% if note.is_done %}done{% endif %}">
       <h2>{{ note.title }}</h2>
       <p>{{ note.text|truncatechars:150 }}</p>
@@ -28,4 +28,14 @@
       <a href="{% url 'notes:delete' note.pk %}">Удалить</a>
     </article>
   {% endfor %}
+
+  <div class="pagination">
+    {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}">Назад</a>
+    {% endif %}
+    <span>Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}">Вперед</a>
+    {% endif %}
+  </div>
 {% endblock %}
