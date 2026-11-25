@@ -1,6 +1,7 @@
 from django.shortcuts import get_object_or_404, redirect, render
 from django.db.models import Count
-from django.core.paginator import Paginator  # <-- Добавили
+from django.core.paginator import Paginator
+from django.core.cache import cache  # <-- Добавили кэш
 from .forms import NoteForm
 from .models import Category, Note
 
@@ -14,14 +15,16 @@ def index(request):
     if request.GET.get("q"):
         notes = notes.filter(title__icontains=request.GET["q"])
         
-    # Убираем total = notes.count() и срез [:300]
-    
-    # Создаем пагинатор: по 20 заметок на страницу
     paginator = Paginator(notes, 20)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
     
-    categories = Category.objects.annotate(notes_count=Count("notes")).order_by("name")
+    # Кэшируем категории на 15 минут (900 секунд)
+    categories = cache.get("categories_list")
+    if not categories:
+        # Если в кэше пусто, идем в базу (этот запрос занимает ~35 мс)
+        categories = list(Category.objects.annotate(notes_count=Count("notes")).order_by("name"))
+        cache.set("categories_list", categories, timeout=900)
     
     return render(request, "notes/note_list.html", {
         "page_obj": page_obj, 
@@ -33,6 +36,7 @@ def note_create(request):
         form = NoteForm(request.POST)
         if form.is_valid():
             form.save()
+            cache.delete("categories_list")
             return redirect("notes:index")
     else:
         form = NoteForm()
@@ -53,5 +57,6 @@ def note_delete(request, pk):
     note = get_object_or_404(Note, pk=pk)
     if request.method == "POST":
         note.delete()
+        cache.delete("categories_list")
         return redirect("notes:index")
     return render(request, "notes/note_confirm_delete.html", {"note": note})
